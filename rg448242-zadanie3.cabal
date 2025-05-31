@@ -1,0 +1,17 @@
+cabal-version:      3.4
+name:               rg448242-zadanie3
+version:            0.1.0.0
+
+executable zadanie3
+    main-is:          Main.hs
+    ghc-options:      -Wall -Wincomplete-patterns -Werror
+    other-modules: Syntax, Pretty, Utils, Reduce, FromHs
+
+    build-depends:
+        base >=4.15.1.0,
+        haskell-src,
+        pretty,
+        containers,
+
+    hs-source-dirs:   app
+    default-language: GHC2021
