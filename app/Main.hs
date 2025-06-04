@@ -1,9 +1,9 @@
 module Main (main) where
 
-import Reduce (reduce)
-import System.Environment (getArgs)
 import FromHs (fromHsString)
-import Syntax (Prog(progDefs))
+import Reduce (reduce)
+import Syntax (Prog (progDefs))
+import System.Environment (getArgs)
 
 dividerLen :: Int
 dividerLen = 60
@@ -23,7 +23,7 @@ runProgString progString = do
   let prog = fromHsString progString
   mapM_ print (progDefs prog)
   putStrLn (replicate dividerLen '-')
-  reduce prog
+  mapM_ (show >> putStrLn) (reduce prog)
 
 printHelp :: IO ()
 printHelp =

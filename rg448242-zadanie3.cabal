@@ -5,13 +5,15 @@ version:            0.1.0.0
 executable zadanie3
     main-is:          Main.hs
     ghc-options:      -Wall -Wincomplete-patterns -Werror
-    other-modules: Syntax, Pretty, Utils, Reduce, FromHs
+    other-modules: FromHs, Reduce, SnocList, Syntax
 
     build-depends:
         base >=4.15.1.0,
-        haskell-src,
-        pretty,
         containers,
+        extra,
+        haskell-src,
+        mtl,
+        transformers,
 
     hs-source-dirs:   app
     default-language: GHC2021
