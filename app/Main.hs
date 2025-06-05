@@ -23,7 +23,7 @@ runProgString progString = do
   let prog = fromHsString progString
   mapM_ print (progDefs prog)
   putStrLn (replicate dividerLen '-')
-  mapM_ (show >> putStrLn) (reduce prog)
+  mapM_ putStrLn (reduce prog)
 
 printHelp :: IO ()
 printHelp =

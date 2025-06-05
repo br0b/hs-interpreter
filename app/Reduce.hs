@@ -8,12 +8,14 @@ import Control.Monad.RWS (RWS)
 import qualified Control.Monad.RWS as RWS
 import qualified Control.Monad.Reader as Reader
 import qualified Control.Monad.State as State
-import Control.Monad.Trans.Maybe (MaybeT)
+import qualified Control.Monad.Trans as Trans
+import Control.Monad.Trans.Maybe (MaybeT (MaybeT))
 import qualified Control.Monad.Trans.Maybe as MaybeT
 import qualified Control.Monad.Writer as Writer
 import Data.Map (Map)
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
+import Debug.Trace
 import SnocList (SnocList)
 import qualified SnocList
 import Syntax (Def, Expr, Match, Name, Pat, Prog)
@@ -30,16 +32,16 @@ data Loc = Loc {expr :: Expr, cxt :: Cxt}
 instance Show Loc where
   show :: Loc -> String
   show (Loc expr Top) = showWithBrackets expr ""
-  show (Loc expr (L p s)) = showLoc (showWithBrackets expr . showString " " . showsPrec 10 s) p
-  show (Loc expr (R p s)) = showLoc (shows s . showString " " . showWithBrackets expr) p
+  show (Loc expr (L p s)) = showLoc (showWithBrackets expr . showChar ' ' . showsPrec 10 s) p
+  show (Loc expr (R p s)) = showLoc (shows s . showChar ' ' . showWithBrackets expr) p
+
+showWithBrackets :: Expr -> ShowS
+showWithBrackets expr = showChar '{' . shows expr . showChar '}'
 
 showLoc :: ShowS -> Cxt -> String
 showLoc exprs Top = exprs ""
-showLoc exprs (L p s) = showLoc (exprs . showsPrec 10 s) p
-showLoc exprs (R p s) = showLoc (shows s . exprs) p
-
-showWithBrackets :: Expr -> ShowS
-showWithBrackets expr = showString "{" . shows expr . showString "}"
+showLoc exprs (L p s) = showLoc (exprs . showChar ' ' . showsPrec 10 s) p
+showLoc exprs (R p s) = showLoc (shows s . showChar ' ' . showParen True exprs) p
 
 data RData = RData {loc :: Loc, stepCap :: Int}
 
@@ -53,17 +55,25 @@ reduce prog =
     snd $ RWS.evalRWS (MaybeT.runMaybeT rpath) (buildDefMap prog) (initRData (Syntax.Var "main") 30)
 
 rpath :: Reduction ()
-rpath = Monad.void rfull
+rpath = do
+  Trans.lift Reader.ask
+    >>= \df -> trace ("-- DefMap: " ++ show df) $ return ()
+  Monad.void rfull
 
 rfull :: Reduction ()
 rfull = do
   loc <- State.gets loc
+  trace ("-- rfull at " ++ show loc) $ return ()
   case expr loc of
     _ Syntax.:$ _ -> leftmost >> rfull
     Syntax.Con _ -> rargs
     Syntax.Var name ->
       rmatchInit name >>= \case
-        Just rmatch' -> rmatch' >> rfull
+        Just rmatch' -> do
+          trace "-- Calling rmatch." $ return ()
+          Monad.void rmatch'
+          trace "-- Calling rfull." $ return ()
+          rfull
         Nothing -> rargs
 
 rargs :: Reduction ()
@@ -75,24 +85,32 @@ rargs = do
     R _ _ -> leftSibling
 
 rmatchInit :: Name -> Reduction (Maybe (Reduction Bool))
-rmatchInit name =
+rmatchInit name = do
+  trace ("-- Matching " ++ show name) $ return ()
   Reader.ask >>= \dm -> case Map.lookup name dm of
     Just def -> return $ Just $ rmatch Map.empty (Syntax.defMatches def)
     Nothing -> return Nothing
 
 rmatch :: VarMap -> [Match] -> Reduction Bool
-rmatch _ [] = rightmost >> leftSibling >> return False
+rmatch _ [] = do
+  trace "-- Match failed." $ return ()
+  leftmost
+  return False
 rmatch vm (m : ms) = do
   loc <- State.gets loc
   case Syntax.matchPats m of
-    pat : pats' -> case cxt loc of
-      L _ _ ->
-        rightSibling >> rpat vm pat >>= \case
-          Just vm' -> parent >> rmatch vm' (m {Syntax.matchPats = pats'} : ms)
-          Nothing -> leftmost >> rmatch Map.empty ms
-      _ -> leftmost >> rmatch Map.empty ms
+    pat : pats' -> do
+      trace ("-- Matching using " ++ show m) $ return ()
+      trace ("-- Starting from " ++ show loc) $ return ()
+      case cxt loc of
+        L _ _ -> do
+          rightSibling
+          rpat vm pat >>= \case
+            Just vm' -> parent >> rmatch vm' (m {Syntax.matchPats = pats'} : ms)
+            Nothing -> leftmost >> rmatch Map.empty ms
+        _ -> leftmost >> rmatch Map.empty ms
     [] -> do
-      -- Finished matching, reduce.
+      trace ("-- Reducing " ++ show loc ++ " to " ++ show (Syntax.matchRhs m)) $ return ()
       setLoc $ loc {expr = subst vm (Syntax.matchRhs m)}
       apath
       leftmost
@@ -105,36 +123,62 @@ subst vm expr = case expr of
   Syntax.Con name -> Syntax.Con name
 
 rpat :: VarMap -> Pat -> Reduction (Maybe VarMap)
-rpat vm pat = case pat of
-  Syntax.PVar name -> do
-    expr <- State.gets (expr . loc)
-    leftSibling
-    return $ Just $ Map.insert name expr vm
-  Syntax.PApp name pats -> leftmost >> rpatcon vm name pats
+rpat vm pat = do
+  loc <- State.gets loc
+  trace ("-- Matching pattern = " ++ show pat) $ return ()
+  trace ("-- at " ++ show loc) $ return ()
+  trace ("-- at " ++ show (expr loc)) $ return ()
+  case pat of
+    Syntax.PVar name -> do
+      leftSibling
+      return $ Just $ Map.insert name (expr loc) vm
+    Syntax.PApp name pats -> do
+      case expr loc of
+        _ Syntax.:$ _ -> leftmost >> rpat vm pat
+        Syntax.Con name' -> do
+          if name == name'
+            then rpatcon vm name pats
+            else rfail
+        Syntax.Var name' ->
+          rmatchInit name' >>= \case
+            Just rmatch' ->
+              rmatch' >>= \case
+                True -> rpat vm pat
+                False -> rfail
+            Nothing -> rfail
 
 rpatcon :: VarMap -> Name -> [Pat] -> Reduction (Maybe VarMap)
-rpatcon vm name pats =
-  State.gets loc >>= \loc -> case expr loc of
-    _ Syntax.:$ _ -> case pats of
+rpatcon vm name pats = do
+  loc <- State.gets loc
+  trace ("-- Matching con = " ++ show name ++ ";" ++ show pats) $ return ()
+  trace ("-- at " ++ show loc) $ return ()
+  case cxt loc of
+    L _ _ -> case pats of
       pat : pats' -> do
         rightSibling
         rpat vm pat >>= \case
-          Just vm' -> case cxt loc of
-            L _ _ -> parent >> rpatcon vm' name pats'
-            _ -> leftSibling >> return (if null pats' then Just vm' else Nothing)
-          Nothing -> rfail Nothing
-      [] -> rfail Nothing
-    Syntax.Con name' -> if name == name' then parent >> rpatcon vm name pats else rfail Nothing
-    Syntax.Var name' ->
-      rmatchInit name' >>= \case
-        Just rmatch' ->
-          rmatch' >>= \case
-            True -> rpatcon vm name pats
-            False -> rfail Nothing
-        Nothing -> rfail Nothing
+          Just vm' -> parent >> rpatcon vm' name pats'
+          Nothing -> rfail
+      [] -> rfail
+    R _ _ -> if null pats then leftSibling >> return (Just vm) else rfail
+    Top ->
+      error
+        "Reduction rpatcon should never be called"
+        "from the top combinator."
 
-rfail :: a -> Reduction a
-rfail res = rightmost >> leftSibling >> return res
+-- case pats of
+--   pat : pats' -> do
+--     rightSibling
+--     rpat vm pat >>= \case
+--       Just vm' ->
+--         case cxt loc of
+--           L _ _ -> parent >> rpatcon vm' name pats'
+--           _ -> leftSibling >> return (if null pats' then Just vm' else Nothing)
+--       Nothing -> rfail
+--   [] -> rfail
+
+rfail :: Reduction (Maybe a)
+rfail = rightmost >> leftSibling >> return Nothing
 
 -- Returns true iff there are more steps left.
 apath :: Reduction ()
@@ -142,9 +186,9 @@ apath = do
   -- Append the loc to the reduction path.
   State.gets loc >>= Writer.tell . pure . show
   -- Lower the maximal number of steps left.
-  newStepCap <- State.gets $ (-) 1 . stepCap
+  newStepCap <- State.gets $ (\x -> x - 1) . stepCap
   State.modify $ \rd -> rd {stepCap = newStepCap}
-  if newStepCap > 0 then return () else MaybeT.MaybeT $ return Nothing
+  if newStepCap > 0 then return () else MaybeT $ return Nothing
 
 setLoc :: Loc -> Reduction ()
 setLoc loc = State.modify $ \rd -> rd {loc = loc}
@@ -171,7 +215,7 @@ rightSibling :: Reduction ()
 rightSibling =
   State.gets loc >>= \loc -> case cxt loc of
     L p rexpr -> setLoc $ Loc rexpr (R p (expr loc))
-    _ -> error "Called not from right sibling."
+    _ -> error "Called not from left sibling."
 
 parent :: Reduction ()
 parent =

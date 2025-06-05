@@ -19,7 +19,7 @@ import Language.Haskell.Syntax
     HsQName (UnQual),
     HsRhs (HsUnGuardedRhs),
   )
-import Syntax (Def (Def), Expr (Var, (:$)), Match (Match), Name, Pat (PApp, PVar), Prog (Prog))
+import Syntax (Def (Def), Expr (Con, Var, (:$)), Match (Match), Name, Pat (PApp, PVar), Prog (Prog))
 
 type Parser = RWS () [Def] Bool
 
@@ -50,13 +50,13 @@ fromHsMatch (HsMatch _ (HsIdent name) pats (HsUnGuardedRhs rhs) _) = do
 fromHsMatch _ = error "Incorrect match definition."
 
 fromHsPat :: HsPat -> Pat
-fromHsPat (HsPVar (HsIdent pat)) = PVar pat
+fromHsPat (HsPVar (HsIdent name)) = PVar name
 fromHsPat (HsPApp name pats) = PApp (fromHsUnQual name) (map fromHsPat pats)
 fromHsPat (HsPParen x) = fromHsPat x
 fromHsPat x = error ("Incorrect combinator argument in definition:" ++ show x)
 
 fromHsExp :: HsExp -> Expr
-fromHsExp (HsCon name) = Var $ fromHsUnQual name
+fromHsExp (HsCon name) = Con $ fromHsUnQual name
 fromHsExp (HsVar name) = Var $ fromHsUnQual name
 fromHsExp (HsApp x (HsParen (HsApp y z))) = fromHsExp x :$ (fromHsExp y :$ fromHsExp z)
 fromHsExp (HsApp x y) = fromHsExp x :$ fromHsExp y
