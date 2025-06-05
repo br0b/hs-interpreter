@@ -1,4 +1,3 @@
--- TODO: Restrict.
 module FromHs where
 
 import qualified Control.Monad as Monad

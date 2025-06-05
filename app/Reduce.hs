@@ -1,6 +1,5 @@
 {-# LANGUAGE LambdaCase #-}
 
--- TODO: Restrict.
 module Reduce where
 
 import qualified Control.Monad as Monad
@@ -162,17 +161,6 @@ rpatcon vm name pats = do
       error
         "Reduction rpatcon should never be called"
         "from the top combinator."
-
--- case pats of
---   pat : pats' -> do
---     rightSibling
---     rpat vm pat >>= \case
---       Just vm' ->
---         case cxt loc of
---           L _ _ -> parent >> rpatcon vm' name pats'
---           _ -> leftSibling >> return (if null pats' then Just vm' else Nothing)
---       Nothing -> rfail
---   [] -> rfail
 
 rfail :: Reduction (Maybe a)
 rfail = rightmost >> leftSibling >> return Nothing
