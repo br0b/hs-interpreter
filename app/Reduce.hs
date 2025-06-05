@@ -8,7 +8,6 @@ import Control.Monad.RWS (RWS)
 import qualified Control.Monad.RWS as RWS
 import qualified Control.Monad.Reader as Reader
 import qualified Control.Monad.State as State
-import qualified Control.Monad.Trans as Trans
 import Control.Monad.Trans.Maybe (MaybeT (MaybeT))
 import qualified Control.Monad.Trans.Maybe as MaybeT
 import qualified Control.Monad.Writer as Writer
@@ -45,6 +44,7 @@ showLoc exprs (R p s) = showLoc (shows s . showChar ' ' . showParen True exprs) 
 
 data RData = RData {loc :: Loc, stepCap :: Int}
 
+-- Writer monad will be used to build an RPah
 type Reduction = MaybeT (RWS DefMap (SnocList String) RData)
 
 type RPath = [String]
@@ -55,10 +55,7 @@ reduce prog =
     snd $ RWS.evalRWS (MaybeT.runMaybeT rpath) (buildDefMap prog) (initRData (Syntax.Var "main") 30)
 
 rpath :: Reduction ()
-rpath = do
-  Trans.lift Reader.ask
-    >>= \df -> trace ("-- DefMap: " ++ show df) $ return ()
-  Monad.void rfull
+rpath = apath >> Monad.void rfull
 
 rfull :: Reduction ()
 rfull = do
