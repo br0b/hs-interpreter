@@ -28,6 +28,6 @@ runProgString progString = do
 printHelp :: IO ()
 printHelp =
   putStrLn
-    "Usage: zadanie2 [--help] [file]\n\
+    "Usage: zadanie3 [--help] [file]\n\
     \  --help  - display this message\n\
     \  file    - file with program to reduce"

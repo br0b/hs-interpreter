@@ -1,19 +1,22 @@
-cabal-version:      3.4
-name:               rg448242-zadanie3
-version:            0.1.0.0
+cabal-version: 3.4
+name:          rg448242-zadanie3
+version:       0.1.0.0
 
 executable zadanie3
     main-is:          Main.hs
-    ghc-options:      -Wall -Wincomplete-patterns -Werror
-    other-modules: FromHs, Reduce, SnocList, Syntax
+    hs-source-dirs:   app
+    other-modules:
+        FromHs
+        Reduce
+        SnocList
+        Syntax
 
+    default-language: GHC2021
+    ghc-options:      -Wall -Wincomplete-patterns -Werror
     build-depends:
         base >=4.15.1.0,
         containers,
         extra,
         haskell-src,
         mtl,
-        transformers,
-
-    hs-source-dirs:   app
-    default-language: GHC2021
+        transformers
