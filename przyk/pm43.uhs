@@ -1,0 +1,6 @@
+
+i x  = x
+c x (S(S(S(y)))) = J
+c Z w = D
+
+main = c Z (S(i(S(i(S(i(S(i(S(i(a)))))))))))

@@ -1,0 +1,6 @@
+i x = x
+
+rl (N x w E) = w
+rl (N x w (N l y r)) = rl (N l y r)
+
+main = rl (N (i l) (i w) (i(N x y (i E))))

@@ -1,0 +1,7 @@
+i x = x
+inf (N l r) = N (inf l) (inf r)
+inf E = E
+
+main = inf (N (N E (N (i E))) (N (i x) E))
+
+

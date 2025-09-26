@@ -1,0 +1,7 @@
+inf = S inf
+i y = y
+
+add n x Z u = n
+add n x (S m) u = S(add n x m u)
+
+main = add (add x x Z u) (add x x Z u) (i (P (i (P (i ( P y)))))) (i Z)

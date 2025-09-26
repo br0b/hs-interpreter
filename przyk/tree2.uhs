@@ -1,0 +1,5 @@
+i x = x
+comp (L x) y (L z) = comp x y z
+comp x (L y) (L z) = comp x y z
+comp x (P y) (P z) = comp x y z
+main = comp (i(L (i a))) (i(P (i b))) (i(P (i c)))

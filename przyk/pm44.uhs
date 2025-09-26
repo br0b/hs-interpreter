@@ -1,0 +1,7 @@
+--czy redukcja odbywa się raz czy dwa razy
+
+i x  = x
+c x (S(S(S(y)))) = J
+c Z  (S(S(y))) = D
+
+main = c Z (i(S(i(S(a)))))

@@ -1,0 +1,6 @@
+even Z = T
+even (S Z) = F
+even (S(S x)) = even x
+add (S x) y = S (add x y)
+add Z y = y
+main = even (add Z (S Z))
