@@ -118,44 +118,6 @@ rmatch defName = do
               setLoc $ loc {expr = subst variableMap (Syntax.matchRhs m)}
               apath >> leftmost >> return True
         
-
--- -- Try to reduce the expression by matching against a definition of a combinator called `defName`.
--- -- Should be called from the leftmost expression. Will finish in the location it was called from.
--- rmatch :: Name -> Reduction Bool
--- rmatch defName = do
---   traceM "-- Calling rmatch."
---   dm <- Reader.ask
---   case Map.lookup defName dm of
---     Nothing -> return False
---     Just def -> leftmost >> go Map.empty (Syntax.defMatches def)
---       where
---         go _ [] = do
---           traceM "-- Match failed."
---           leftmost >> return False
---         go variableMap (m : ms) = do
---           loc <- State.gets loc
---           case Syntax.matchPats m of
---             pat : pats -> do
---               traceM ("-- Matching using " ++ show m)
---               traceM ("-- Starting from " ++ show loc)
---               case cxt loc of
---                 L _ _ -> do
---                   rightSibling
---                   rpat variableMap pat >>= \case
---                     -- Success, got an updated variable map. Go to the next argument.
---                     Just variableMap' -> parent >> go variableMap' (m {Syntax.matchPats = pats} : ms)
---                     -- The pattern of the application argumnt doesn't match.
---                     -- Try to match the next definition arguments.
---                     Nothing -> leftmost >> go Map.empty ms
---                 -- Not enough arguments for this pattern, try again with the next one.
---                 _ -> leftmost >> go Map.empty ms
---             -- All arugments matcheed. Success.
---             [] -> do
---               traceM ("-- Reducing " ++ show loc ++ " to " ++ show (Syntax.matchRhs m))
---               setLoc $ loc {expr = subst variableMap (Syntax.matchRhs m)}
---               apath >> leftmost >> return True
---         goArgs vairableMap m = 
-
 -- Substitiute the variable names in the expression with the corresponding expression from `VarMap`.
 subst :: VarMap -> Expr -> Expr
 subst vm expr = case expr of
